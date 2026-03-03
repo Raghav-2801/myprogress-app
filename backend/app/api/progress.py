@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, Integer
 
 from ..db.session import get_db
 from ..models.topic import Topic
@@ -19,27 +19,27 @@ def get_progress_stats(
     """Get overall progress statistics"""
     # Total questions
     total_questions = db.query(Question).count()
-    
+
     # Completed questions
     completed_questions = db.query(Question).filter(Question.is_completed == True).count()
-    
+
     # Questions by difficulty
     difficulty_stats = db.query(
         Question.difficulty,
         func.count(Question.id).label("count")
     ).group_by(Question.difficulty).all()
-    
+
     # Questions by topic
     topic_stats = db.query(
         Topic.name,
         Topic.slug,
         func.count(Question.id).label("total"),
-        func.sum(func.cast(Question.is_completed, db.Integer)).label("completed")
+        func.sum(func.cast(Question.is_completed, Integer)).label("completed")
     ).outerjoin(Question, Topic.id == Question.topic_id).group_by(Topic.id).all()
-    
+
     # Calculate overall progress
     overall_progress = (completed_questions / total_questions * 100) if total_questions > 0 else 0
-    
+
     return {
         "overall": {
             "total_questions": total_questions,
@@ -70,7 +70,7 @@ def get_leetcode_progress(
 ):
     """Get detailed LeetCode progress"""
     leetcode_topic = db.query(Topic).filter(Topic.slug == "leetcode").first()
-    
+
     if not leetcode_topic:
         return {
             "topic": None,
@@ -81,15 +81,15 @@ def get_leetcode_progress(
                 "progress": 0
             }
         }
-    
+
     questions = db.query(Question).filter(
         Question.topic_id == leetcode_topic.id
     ).order_by(Question.display_order, Question.id).all()
-    
+
     total = len(questions)
     completed = sum(1 for q in questions if q.is_completed)
     progress = (completed / total * 100) if total > 0 else 0
-    
+
     return {
         "topic": {
             "id": leetcode_topic.id,
