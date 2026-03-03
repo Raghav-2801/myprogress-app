@@ -26,37 +26,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored token on mount
-    const storedToken = localStorage.getItem('progress_tracker_token');
-    const storedUser = localStorage.getItem('progress_tracker_user');
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    
-    setIsLoading(false);
+    const initAuth = async () => {
+      const storedToken = localStorage.getItem('progress_tracker_token');
+      const storedUser = localStorage.getItem('progress_tracker_user');
+
+      if (storedToken && storedUser) {
+        // Validate token with the API
+        try {
+          const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${storedToken}` },
+          });
+          if (response.ok) {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+          } else {
+            // Token expired or invalid - clear and auto-login as guest
+            localStorage.removeItem('progress_tracker_token');
+            localStorage.removeItem('progress_tracker_user');
+            await performGuestLogin();
+          }
+        } catch {
+          // Network error - still set cached user for offline resilience
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        }
+      } else {
+        // No stored session - auto-login as guest
+        await performGuestLogin();
+      }
+      setIsLoading(false);
+    };
+    initAuth();
   }, []);
+
+  const performGuestLogin = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/guest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setToken(data.access_token);
+        setUser(data.user);
+        localStorage.setItem('progress_tracker_token', data.access_token);
+        localStorage.setItem('progress_tracker_user', JSON.stringify(data.user));
+      }
+    } catch {
+      // Guest login failed - user will see login page
+    }
+  };
 
   const login = async (username: string, password: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
       throw new Error(error.detail || 'Login failed');
     }
 
     const data = await response.json();
-    
     setToken(data.access_token);
     setUser(data.user);
-    
     localStorage.setItem('progress_tracker_token', data.access_token);
     localStorage.setItem('progress_tracker_user', JSON.stringify(data.user));
   };
@@ -64,9 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginAsGuest = async () => {
     const response = await fetch(`${API_BASE_URL}/auth/guest`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
     });
 
     if (!response.ok) {
@@ -75,10 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data = await response.json();
-    
     setToken(data.access_token);
     setUser(data.user);
-    
     localStorage.setItem('progress_tracker_token', data.access_token);
     localStorage.setItem('progress_tracker_user', JSON.stringify(data.user));
   };
