@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, Integer
+from typing import List
 
 from ..db.session import get_db
 from ..models.topic import Topic
 from ..models.question import Question
 from ..models.user import User
+from ..schemas.question import QuestionResponse
 from ..core.auth import get_current_user
 
 router = APIRouter(prefix="/progress", tags=["Progress"])
@@ -97,7 +99,10 @@ def get_leetcode_progress(
             "description": leetcode_topic.description,
             "color": leetcode_topic.color
         },
-        "questions": questions,
+        "questions": [
+            QuestionResponse.model_validate(q).model_dump()
+            for q in questions
+        ],
         "stats": {
             "total": total,
             "completed": completed,
