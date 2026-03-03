@@ -34,9 +34,9 @@ services:
           name: progress_tracker_db
           property: connectionString
       - key: CORS_ORIGINS
-        value: '["https://kapilraghav.info", "https://www.kapilraghav.info", "https://kapilraghav.info/myprogress"]'
+        value: '["https://myprogress-frontend.onrender.com", "https://kapilraghav.info", "https://www.kapilraghav.info", "https://kapilraghav.info/myprogress"]'
       - key: FRONTEND_URL
-        value: https://kapilraghav.info/myprogress
+        value: https://myprogress-frontend.onrender.com
       - key: GITHUB_USERNAME
         value: Raghav-2801
       - key: ADMIN_USERNAME
