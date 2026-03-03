@@ -1,0 +1,65 @@
+name: Build for Subdirectory Deployment
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+        python-version: ['3.11']
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Frontend Build
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend with subdirectory path
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /myprogress/
+          VITE_API_URL: https://myprogress-api.onrender.com/api
+
+      - name: List dist contents
+        run: ls -la dist/
+
+      # Backend Build (Python checks)
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Lint Python files
+        run: |
+          pip install flake8
+          flake8 backend/app --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+      - name: Check if build artifacts exist
+        run: |
+          if [ -d "dist" ]; then
+            echo "Frontend build successful"
+            ls -la dist/
+          else
+            echo "Frontend build failed"
+            exit 1
+          fi
